@@ -17,6 +17,8 @@ model User {
   createdAt DateTime @default(now())
 
   creditCards CreditCard[] @relation("UserCards")
+  sentTransactions     Transaction[] @relation("SentTransactions")
+  receivedTransactions Transaction[] @relation("ReceivedTransactions")
 }
 
 enum Role {
@@ -50,4 +52,14 @@ model BlacklistedToken {
   token     String   @unique
   createdAt DateTime @default(now())
   expiresAt DateTime
+}
+
+model Transaction {
+  id         Int      @id @default(autoincrement())
+  sender     User     @relation("SentTransactions", fields: [senderId], references: [id])
+  senderId   Int
+  receiver   User     @relation("ReceivedTransactions", fields: [receiverId], references: [id])
+  receiverId Int
+  amount     Float
+  createdAt  DateTime @default(now())
 }

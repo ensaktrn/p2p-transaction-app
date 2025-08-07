@@ -7,6 +7,8 @@ const authRoutes = require('./src/routes/authRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const cardRoutes = require('./src/routes/cardRoutes');
 const topupRoutes = require('./src/routes/topupRoutes');
+const transferRoutes = require('./src/routes/transferRoutes');
+const transactionRoutes = require('./src/routes/transactionRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -19,6 +21,8 @@ app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/cards', cardRoutes);
 app.use('/topup', topupRoutes);
+app.use('/transfer', transferRoutes);
+app.use('/transactions', transactionRoutes);
 
 app.get('/', (req, res) => {
   res.send('P2P Payments API');
