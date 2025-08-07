@@ -1,4 +1,4 @@
-const { getUserById, deleteUserById } = require('../services/userService');
+const { getUserById, deleteUserById, updateUserById, getAllUsers } = require('../services/userService');
 
 const getUser = async (req, res) => {
   const requestedId = parseInt(req.params.id);
@@ -39,7 +39,48 @@ const deleteUser = async (req, res) => {
     }
   };
 
+  
+const updateUser = async (req, res) => {
+  const requestedId = parseInt(req.params.id);
+  const requesterId = req.user.id;
+  const requesterRole = req.user.role;
+
+  // Sadece kendisi veya admin güncelleyebilir
+  if (requestedId !== requesterId && requesterRole !== 'ADMIN') {
+    return res.status(403).json({ error: 'Forbidden: You cannot update this user' });
+  }
+
+  try {
+    const updatedUser = await updateUserById(requestedId, req.body);
+
+    res.json({
+      message: 'User updated successfully',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ error: error.message });
+  }
+};  
+// user listesi getirme işlemi admine ozel
+const listUsers = async (req, res) => {
+  try {
+    const users = await getAllUsers();
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 module.exports = {
   getUser,
-  deleteUser
+  deleteUser,
+  updateUser,
+  listUsers
 };
