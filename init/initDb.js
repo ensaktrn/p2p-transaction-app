@@ -27,12 +27,12 @@ const createDatabase = async () => {
 
     if (res.rowCount === 0) {
       await client.query(`CREATE DATABASE ${DB_NAME}`);
-      console.log(`✅ Veritabanı "${DB_NAME}" oluşturuldu.`);
+      console.log(`✅ Database "${DB_NAME}" created.`);
     } else {
-      console.log(`ℹ️ Veritabanı "${DB_NAME}" zaten mevcut.`);
+      console.log(`ℹ️ Database "${DB_NAME}" is already exists.`);
     }
   } catch (err) {
-    console.error('❌ Veritabanı oluşturulamadı:', err);
+    console.error('❌ Database couldnt created:', err);
   } finally {
     await client.end();
   }
