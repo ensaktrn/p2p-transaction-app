@@ -30,6 +30,7 @@ model ValidCard {
   cvv        String
   expMonth   Int
   expYear    Int
+  balance    Float   @default(50000)
 }
 
 model CreditCard {

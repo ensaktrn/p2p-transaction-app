@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "public"."ValidCard" ADD COLUMN     "balance" DOUBLE PRECISION NOT NULL DEFAULT 50000;
