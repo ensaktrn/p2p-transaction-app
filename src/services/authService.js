@@ -52,8 +52,18 @@ const loginUser = async ({ email, password }) => {
   
     return { token, user };
   };
+
+const logoutUser = async (token, expiresAt) => {
+  await prisma.blacklistedToken.create({
+    data: {
+      token,
+      expiresAt,
+    },
+  });
+};  
   
   module.exports = {
     registerUser,
-    loginUser, // ← yeni eklenen
+    loginUser,
+    logoutUser
   };

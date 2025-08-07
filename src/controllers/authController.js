@@ -1,4 +1,4 @@
-const { registerUser, loginUser } = require('../services/authService');
+const { registerUser, loginUser, logoutUser } = require('../services/authService');
 
 //User register
 const register = async (req, res) => {
@@ -40,7 +40,22 @@ const login = async (req, res) => {
       res.status(401).json({ error: error.message });
     }
   };
+
+const logout = async (req, res) => {
+  const token = req.token;
+  const expiresAt = new Date(req.user.exp * 1000); // exp saniye → ms
+
+  try {
+    await logoutUser(token, expiresAt);
+    res.json({ message: "Logged out successfully" });
+  } catch (err) {
+    console.error("Logout error:", err);
+    res.status(500).json({ error: "Logout failed" });
+  }
+};
+
 module.exports = {
   register,
-  login
+  login,
+  logout,
 };

@@ -1,28 +1,33 @@
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 const jwt = require('jsonwebtoken');
 
-const authenticate = (req, res, next) => {
+const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  // Token var mı kontrolü
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
+  req.token = token; // Logout için saklıyoruz
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
 
-    // decoded içinden user bilgilerini req içine ekle
-    req.user = {
-      id: decoded.userId,
-      role: decoded.role,
-    };
+    // ❗ Token blackliste alınmış mı?
+    const isBlacklisted = await prisma.blacklistedToken.findUnique({
+      where: { token },
+    });
 
-    next(); // → bir sonraki middleware'e geç
+    if (isBlacklisted) {
+      return res.status(401).json({ error: "Token is blacklisted" });
+    }
+
+    next();
   } catch (err) {
-    console.error('Invalid token:', err);
-    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    res.status(401).json({ error: "Invalid token" });
   }
 };
 
