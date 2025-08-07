@@ -15,9 +15,31 @@ model User {
   balance   Float    @default(0)
   role      Role     @default(USER)
   createdAt DateTime @default(now())
+
+  creditCards CreditCard[] @relation("UserCards")
 }
 
 enum Role {
   USER
   ADMIN
+}
+
+model ValidCard {
+  id         Int     @id @default(autoincrement())
+  cardNumber String  @unique
+  cvv        String
+  expMonth   Int
+  expYear    Int
+}
+
+model CreditCard {
+  id         Int      @id @default(autoincrement())
+  cardNumber String
+  cvv        String
+  expMonth   Int
+  expYear    Int
+  userId     Int
+  createdAt  DateTime @default(now())
+
+  user       User     @relation("UserCards", fields: [userId], references: [id])
 }
