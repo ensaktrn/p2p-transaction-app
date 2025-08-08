@@ -43,6 +43,16 @@ const topUpBalance = async (userId, { cardId, amount }) => {
       balance: { decrement: amount },
     },
   });
+  
+  // Transaction'a log ekle
+  await prisma.transaction.create({
+    data: {
+      type: "TOPUP",
+      amount,
+      senderId: null,
+      receiverId: userId,
+    },
+  });
 
   return updatedUser;
 };
