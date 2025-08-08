@@ -39,6 +39,7 @@ const transferMoney = async ({ senderId, receiverEmail, amount }) => {
   
     await prisma.transaction.create({
       data: {
+        type: "TRANSFER",
         senderId,
         receiverId: receiver.id,
         amount,
