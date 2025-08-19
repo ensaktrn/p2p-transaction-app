@@ -1,0 +1,21 @@
+.env
+
+/src/generated/prisma
+.DS_Store
+
+# Monorepo ignore
+node_modules/
+.next/
+dist/
+build/
+coverage/
+.out/
+.turbo/
+.vercel/
+
+# Alt klasörler garanti olsun diye:
+frontend/node_modules/
+frontend/.next/
+backend/node_modules/
+backend/.next/
+frontend/node_modules/.package-lock.json
