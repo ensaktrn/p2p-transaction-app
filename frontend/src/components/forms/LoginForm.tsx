@@ -18,13 +18,14 @@ export default function LoginForm() {
       const { token, user } = await loginUser({ email, password });
   
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user)); // ✅ EKLENDİ
+      localStorage.setItem('user', JSON.stringify(user)); // mevcut
+      localStorage.setItem('userId', String(user.id));    // ✅ eklendi
   
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message);
     }
-  };
+  };  
   
   return (
     <form onSubmit={handleLogin} className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
