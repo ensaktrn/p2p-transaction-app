@@ -19,6 +19,11 @@ model User {
   creditCards CreditCard[] @relation("UserCards")
   sentTransactions     Transaction[] @relation("SentTransactions")
   receivedTransactions Transaction[] @relation("ReceivedTransactions")
+
+  sentFriendRequests     FriendRequest[] @relation("SentFriendRequests")
+  receivedFriendRequests FriendRequest[] @relation("ReceivedFriendRequests")
+  friendshipsA           Friendship[]    @relation("FriendshipsA")
+  friendshipsB           Friendship[]    @relation("FriendshipsB")
 }
 
 enum Role {
@@ -68,4 +73,38 @@ model Transaction {
 enum TransactionType {
   TRANSFER
   TOPUP
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELED
+}
+
+model FriendRequest {
+  id        Int                   @id @default(autoincrement())
+  from      User                  @relation("SentFriendRequests", fields: [fromId], references: [id])
+  fromId    Int
+  to        User                  @relation("ReceivedFriendRequests", fields: [toId], references: [id])
+  toId      Int
+  status    FriendRequestStatus   @default(PENDING)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@index([toId])
+  @@index([fromId])
+}
+
+model Friendship {
+  id        Int      @id @default(autoincrement())
+  userA     User     @relation("FriendshipsA", fields: [userAId], references: [id])
+  userAId   Int
+  userB     User     @relation("FriendshipsB", fields: [userBId], references: [id])
+  userBId   Int
+  createdAt DateTime @default(now())
+
+  @@unique([userAId, userBId], map: "uniq_friend_pair")
+  @@index([userAId])
+  @@index([userBId])
 }
