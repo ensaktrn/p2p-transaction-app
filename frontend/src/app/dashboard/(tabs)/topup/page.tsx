@@ -3,12 +3,12 @@
 import { useState } from "react";
 import AddCardForm from "@/components/forms/AddCardForm";
 import TopupForm from "@/components/forms/TopUpForm";
+import { mutate } from "swr";
 
 export default function TopupPage() {
   const [txRefreshKey, setTxRefreshKey] = useState(0);
 
   const handleSuccess = () => {
-    // burada istersen global bir data katmanıyla balance/tx güncelle
     setTxRefreshKey(k => k + 1);
   };
 

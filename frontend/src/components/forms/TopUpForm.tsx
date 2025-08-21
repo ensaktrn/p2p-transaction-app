@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { fetchCards, type CardListItem } from "@/services/cards";
 import { topup } from "@/services/wallet";
+import { mutateWallet } from "@/lib/mutateWallet";
+import { toast } from "sonner";
 
 type Props = { onSuccess?: () => void };
 
@@ -13,36 +15,40 @@ export default function TopupForm({ onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadingCards, setLoadingCards] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    const run = async () => {
+    (async () => {
       try {
         const data = await fetchCards();
         setCards(data);
         if (data[0]) setSelectedCardId(data[0].id);
-      } catch (e:any) {
+      } catch (e: any) {
         setError(e.message || "Failed to load cards.");
       } finally {
         setLoadingCards(false);
       }
-    };
-    run();
-  }, []); // sabit
+    })();
+  }, []);
 
   const handleTopup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null); setSuccess(null);
+    setError(null);
+
     try {
       if (!selectedCardId) throw new Error("Please select a card.");
       if (!amount || Number(amount) <= 0) throw new Error("Enter a valid amount.");
       setLoading(true);
-      await topup({ cardId: Number(selectedCardId), amount: Number(amount) });
-      setSuccess("Top up successful.");
-      setAmount("");
+      const amt = Number(amount);
+      await topup({ cardId: Number(selectedCardId), amount: amt });
+
+      // ✅ SWR cache güncelle
+      mutateWallet(+amt);
       onSuccess?.();
-    } catch (e:any) {
+      setAmount("");
+      toast.success("Top up successful");
+    } catch (e: any) {
       setError(e.message || "Top up failed.");
+      toast.error(e.message || "Top up failed");
     } finally {
       setLoading(false);
     }
@@ -51,13 +57,11 @@ export default function TopupForm({ onSuccess }: Props) {
   return (
     <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4 mb-4">
       <h2 className="text-lg font-semibold mb-3">Top Up</h2>
-
       {loadingCards ? (
         <p>Loading cards...</p>
       ) : cards.length === 0 ? (
         <div className="text-sm text-gray-600">
           <p>No saved cards found.</p>
-          <p>Please add a card first.</p>
         </div>
       ) : (
         <form onSubmit={handleTopup} className="space-y-3">
@@ -65,10 +69,10 @@ export default function TopupForm({ onSuccess }: Props) {
             <label className="text-sm font-medium">Select card</label>
             <select
               value={selectedCardId}
-              onChange={(e)=>setSelectedCardId(Number(e.target.value))}
+              onChange={(e) => setSelectedCardId(Number(e.target.value))}
               className="border border-gray-300 rounded-lg p-2 w-full mt-1"
             >
-              {cards.map(c => (
+              {cards.map((c) => (
                 <option key={c.id} value={c.id}>
                   {(c.brand || "CARD")} •••• {c.last4} — {c.nameOnCard} (exp {c.expMonth}/{c.expYear})
                 </option>
@@ -82,7 +86,7 @@ export default function TopupForm({ onSuccess }: Props) {
               type="number"
               min={1}
               value={amount}
-              onChange={(e)=>setAmount(e.target.value === "" ? "" : Number(e.target.value))}
+              onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
               placeholder="Enter amount"
               className="border border-gray-300 rounded-lg p-2 w-full mt-1"
               required
@@ -98,7 +102,6 @@ export default function TopupForm({ onSuccess }: Props) {
           </button>
 
           {error && <p className="text-red-600 text-sm">{error}</p>}
-          {success && <p className="text-green-600 text-sm">{success}</p>}
         </form>
       )}
     </div>

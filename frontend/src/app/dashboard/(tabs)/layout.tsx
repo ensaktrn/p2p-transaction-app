@@ -1,48 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Header from "@/components/dashboard/Header";
 import BalanceCard from "@/components/dashboard/BalanceCard";
 import BottomNav from "@/components/dashboard/BottomNav";
-
-type UserResp = { id: number; email: string; balance: number; name?: string | null };
+import { useUser } from "@/hooks/useUser";
 
 export default function TabsLayout({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserResp | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const { user, isLoading } = useUser();
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userId = localStorage.getItem("userId");
-    if (!token || !userId) { router.push("/login"); return; }
-  
-    const fetchUser = async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) { router.push("/login"); return; }
-      setUser(await res.json());
-    };
-  
-    // ilk yükleme
-    (async () => { await fetchUser(); setLoading(false); })();
-  
-    // ⬇️ Topup/Transfer sonrası tetiklenen event
-    const onWalletChanged = () => { fetchUser(); };
-    window.addEventListener("wallet:changed", onWalletChanged);
-    return () => window.removeEventListener("wallet:changed", onWalletChanged);
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("userId");
-    router.push("/login");
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-100 text-gray-900 p-6">
         <div className="max-w-xl mx-auto bg-white p-6 rounded-lg shadow-md">
@@ -54,14 +20,17 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
 
   if (!user) return null;
 
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = "/login";
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-900 pb-16"> 
-      {/* pb-16: BottomNav için boşluk */}
+    <div className="min-h-screen bg-gray-100 text-gray-900 pb-16">
       <div className="max-w-xl mx-auto p-6">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <Header name={user.name ?? user.email} onLogout={handleLogout} />
           <BalanceCard balance={Number(user.balance ?? 0)} />
-          {/* Tab içerikleri */}
           {children}
         </div>
       </div>

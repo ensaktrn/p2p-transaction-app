@@ -1,3 +1,4 @@
+import { authFetch } from "@/lib/authFetch";
 const BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
 
 export type CardListItem = {
@@ -10,9 +11,7 @@ export type CardListItem = {
 };
 
 export async function fetchCards(): Promise<CardListItem[]> {
-  const res = await fetch(`${BASE}/cards`, {
-    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-  });
+  const res = await authFetch(`${BASE}/cards`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -24,14 +23,12 @@ export async function addCard(payload: {
   expYear: number;
   nameOnCard: string;
 }) {
-  const res = await fetch(`${BASE}/cards`, {
+  const res = await authFetch(`${BASE}/card`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<{ message: string; cardId: number }>;
+  const body = await res.json().catch(async () => ({ message: await res.text().catch(()=> "") }));
+  if (!res.ok) throw new Error(body?.message || body?.error || `Add card failed (${res.status})`);
+  return body as { message: string; cardId: number };
 }

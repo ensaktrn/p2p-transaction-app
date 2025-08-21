@@ -14,6 +14,7 @@ export default function AddCardForm({ onSuccess }: { onSuccess?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const onlyDigits = (s:string) => s.replace(/\D/g, "");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,6 +22,9 @@ export default function AddCardForm({ onSuccess }: { onSuccess?: () => void }) {
     try {
       setLoading(true);
       if (!expMonth || !expYear) throw new Error("Expiration date is required.");
+      if (cardNumber.length !== 16) throw new Error("Card number must be 16 digits.");
+      if (cvv.length !== 3) throw new Error("CVV must be 3 digits.");
+      if (expMonth < 1 || expMonth > 12) throw new Error("Invalid month.");
       await addCard({
         cardNumber: cardNumber.replace(/\s+/g, ""),
         cvv,
@@ -51,7 +55,7 @@ export default function AddCardForm({ onSuccess }: { onSuccess?: () => void }) {
         />
         <input
           value={cardNumber}
-          onChange={(e)=>setCardNumber(e.target.value)}
+          onChange={(e)=>setCardNumber(onlyDigits(e.target.value).slice(0,16))}
           placeholder="Card number (no spaces)"
           inputMode="numeric"
           className="border border-gray-300 rounded-lg p-2"
@@ -60,7 +64,7 @@ export default function AddCardForm({ onSuccess }: { onSuccess?: () => void }) {
         <div className="flex gap-2">
           <input
             value={cvv}
-            onChange={(e)=>setCvv(e.target.value)}
+            onChange={(e)=>setCvv(onlyDigits(e.target.value).slice(0,3))}
             placeholder="CVV"
             inputMode="numeric"
             className="border border-gray-300 rounded-lg p-2 w-24"

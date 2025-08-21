@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { transfer } from "@/services/wallet";
+import { mutateWallet } from "@/lib/mutateWallet";
+import { toast } from "sonner";
 
 type Props = { onSuccess?: () => void };
 
@@ -10,11 +12,10 @@ export default function TransferForm({ onSuccess }: Props) {
   const [amount, setAmount] = useState<number | "">("");
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null); setSuccess(null);
+    setError(null);
 
     try {
       if (!recipient.trim()) throw new Error("Please enter a recipient email.");
@@ -22,26 +23,25 @@ export default function TransferForm({ onSuccess }: Props) {
 
       setLoading(true);
 
-      const body: { amount: number; receiverEmail: string;} = {
+      const body: { amount: number; receiverEmail: string} = {
         amount: Number(amount),
-        receiverEmail: "", // bu daha sonra doldurulacak
+        receiverEmail: "",
       };
-      console.log("Transfer request body:", body);
+      
       body.receiverEmail = recipient.trim();
       
+
       await transfer(body);
 
-      setSuccess("Transfer successful.");
+      // ✅ SWR cache güncelle
+      mutateWallet(-Number(amount));
+      onSuccess?.();
       setAmount("");
       setRecipient("");
-
-      // üst katmana haber ver + basit global event (layout dinleyebilir)
-      onSuccess?.();
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("wallet:changed"));
-      }
+      toast.success("Transfer successful");
     } catch (e: any) {
       setError(e.message || "Transfer failed.");
+      toast.error(e.message || "Transfer failed");
     } finally {
       setLoading(false);
     }
@@ -50,10 +50,9 @@ export default function TransferForm({ onSuccess }: Props) {
   return (
     <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4 mb-4">
       <h2 className="text-lg font-semibold mb-3">Transfer</h2>
-
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
-          <label className="text-sm font-medium">Recipient email</label>
+          <label className="text-sm font-medium">Recipient (email or user ID)</label>
           <input
             value={recipient}
             onChange={(e)=>setRecipient(e.target.value)}
@@ -62,7 +61,6 @@ export default function TransferForm({ onSuccess }: Props) {
             required
           />
         </div>
-
         <div>
           <label className="text-sm font-medium">Amount</label>
           <input
@@ -75,7 +73,6 @@ export default function TransferForm({ onSuccess }: Props) {
             required
           />
         </div>
-
         <button
           type="submit"
           disabled={loading}
@@ -83,9 +80,7 @@ export default function TransferForm({ onSuccess }: Props) {
         >
           {loading ? "Processing..." : "Send"}
         </button>
-
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        {success && <p className="text-green-600 text-sm">{success}</p>}
       </form>
     </div>
   );
