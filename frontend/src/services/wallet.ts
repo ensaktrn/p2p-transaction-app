@@ -12,3 +12,17 @@ export async function topup(payload: { cardId: number; amount: number }) {
   if (!res.ok) throw new Error(await res.text());
   return res.json() as Promise<{ message: string; newBalance: number }>;
 }
+
+export async function transfer(payload: { amount: number; receiverEmail: string; }) {
+  //console.log("Transfer request payload:", JSON.stringify(payload));
+  const res = await fetch(`${BASE}/transfer`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<{ message: string }>;
+}
