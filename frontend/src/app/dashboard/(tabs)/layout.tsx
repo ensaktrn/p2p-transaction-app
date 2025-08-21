@@ -13,25 +13,27 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Tek seferlik auth + kullanıcı çekme
   useEffect(() => {
     const token = localStorage.getItem("token");
     const userId = localStorage.getItem("userId");
     if (!token || !userId) { router.push("/login"); return; }
-
-    const run = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) { router.push("/login"); return; }
-        setUser(await res.json());
-      } finally {
-        setLoading(false);
-      }
+  
+    const fetchUser = async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { router.push("/login"); return; }
+      setUser(await res.json());
     };
-    run();
-  }, []); // sabit tut
+  
+    // ilk yükleme
+    (async () => { await fetchUser(); setLoading(false); })();
+  
+    // ⬇️ Topup/Transfer sonrası tetiklenen event
+    const onWalletChanged = () => { fetchUser(); };
+    window.addEventListener("wallet:changed", onWalletChanged);
+    return () => window.removeEventListener("wallet:changed", onWalletChanged);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");

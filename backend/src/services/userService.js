@@ -37,20 +37,29 @@ const updateUserById = async (id, updateData) => {
   
   if (updateData.name) {
     dataToUpdate.name = updateData.name;
+  }
+
+  if (updateData.currentPassword && updateData.newPassword) {
+    const user = await prisma.user.findUnique({ where: { id: parseInt(id) } });
+
+    // mevcut şifreyi kontrol et
+    const valid = await bcrypt.compare(updateData.currentPassword, user.password);
+    if (!valid) {
+      throw new Error("Current password is incorrect");
     }
-  
-  if (updateData.password) {
-    const hashedPassword = await bcrypt.hash(updateData.password, 10);
+
+    // yeni şifreyi hashle
+    const hashedPassword = await bcrypt.hash(updateData.newPassword, 10);
     dataToUpdate.password = hashedPassword;
-    }
-  
+  }
+
   const updatedUser = await prisma.user.update({
     where: { id: parseInt(id) },
     data: dataToUpdate,
   });
 
   return updatedUser;
-};  
+};
 
 const getAllUsers = async () => {
   const users = await prisma.user.findMany({
