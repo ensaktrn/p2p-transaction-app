@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import SendFriendRequestForm from "@/components/forms/SendFriendRequestForm";
+import SendFriendRequestForm from "@/components/forms/sendFriendRequestForm";
 import FriendsList from "@/components/dashboard/FriendList";
 import FriendRequests from "@/components/dashboard/FriendRequests";
 

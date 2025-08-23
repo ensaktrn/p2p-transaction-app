@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";   // ⬅️ eklendi
 import { transfer } from "@/services/wallet";
 import { mutateWallet } from "@/lib/mutateWallet";
 import { toast } from "sonner";
@@ -8,10 +9,23 @@ import { toast } from "sonner";
 type Props = { onSuccess?: () => void };
 
 export default function TransferForm({ onSuccess }: Props) {
-  const [recipient, setRecipient] = useState(""); // email or userId
+  const searchParams = useSearchParams();             // ⬅️ eklendi
+  const [recipient, setRecipient] = useState("");     // email
   const [amount, setAmount] = useState<number | "">("");
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState<string | null>(null);
+
+  // URL'den ?to= ve (opsiyonel) ?amount= oku, formu doldur
+  useEffect(() => {
+    const to = searchParams.get("to");
+    const amt = searchParams.get("amount");
+    if (to && !recipient) setRecipient(to);
+    if (amt && amount === "") {
+      const n = Number(amt);
+      if (Number.isFinite(n) && n > 0) setAmount(n);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]); // parametre değişirse yeniden doldur
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,13 +37,10 @@ export default function TransferForm({ onSuccess }: Props) {
 
       setLoading(true);
 
-      const body: { amount: number; receiverEmail: string} = {
+      const body: { amount: number; receiverEmail: string } = {
         amount: Number(amount),
-        receiverEmail: "",
+        receiverEmail: recipient.trim(),
       };
-      
-      body.receiverEmail = recipient.trim();
-      
 
       await transfer(body);
 
@@ -52,11 +63,11 @@ export default function TransferForm({ onSuccess }: Props) {
       <h2 className="text-lg font-semibold mb-3">Transfer</h2>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
-          <label className="text-sm font-medium">Recipient (email or user ID)</label>
+          <label className="text-sm font-medium">Recipient (email)</label>
           <input
             value={recipient}
             onChange={(e)=>setRecipient(e.target.value)}
-            placeholder="e.g. friend@example.com or 123"
+            placeholder="friend@example.com"
             className="border border-gray-300 rounded-lg p-2 w-full mt-1"
             required
           />
