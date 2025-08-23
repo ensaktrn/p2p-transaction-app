@@ -20,15 +20,14 @@ A Peer-to-Peer money transfer application built with Node.js, Express.js, Postgr
 ## ⚡ Getting Started
 1. Clone & install
 git clone https://github.com/ensaktrn/p2p-transaction-app.git
+\ncd p2p-transaction-app
 
-cd p2p-transaction-app
-
-- Backend
-cd backend
+- Backend\n
+cd backend\n
 npm install
 
-- Frontend
-cd frontend
+- Frontend\n
+cd frontend\n
 npm install
 
 2. Database setup  
