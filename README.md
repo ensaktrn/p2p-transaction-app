@@ -41,8 +41,10 @@ npx prisma migrate dev
 npx prisma db seed
 
 3. Start servers
-- Backend: npm run dev → http://localhost:5001  
-- Frontend: npm run dev → http://localhost:3000
+- Backend:
+  npm run dev → http://localhost:5001  
+- Frontend:
+  npm run dev → http://localhost:3000
 
 ## 🧪 Example API Requests
 ### Login
