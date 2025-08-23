@@ -13,7 +13,7 @@ async function main() {
       cardNumber: '5500000000000004',
       cvv: '456',
       expMonth: 6,
-      expYear: 2025,
+      expYear: 2028,
     },
     {
       cardNumber: '340000000000009',
@@ -25,7 +25,7 @@ async function main() {
       cardNumber: '30000000000004',
       cvv: '321',
       expMonth: 3,
-      expYear: 2024,
+      expYear: 2029,
     },
     {
       cardNumber: '6011000000000004',

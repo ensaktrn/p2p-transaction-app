@@ -24,6 +24,10 @@ model User {
   receivedFriendRequests FriendRequest[] @relation("ReceivedFriendRequests")
   friendshipsA           Friendship[]    @relation("FriendshipsA")
   friendshipsB           Friendship[]    @relation("FriendshipsB")
+
+  // Money Requests
+  moneyRequestsSent      MoneyRequest[]  @relation("MoneyReqFrom") // fromId = ben istedim
+  moneyRequestsReceived  MoneyRequest[]  @relation("MoneyReqTo")   // toId   = benden istendi
 }
 
 enum Role {
@@ -107,4 +111,27 @@ model Friendship {
   @@unique([userAId, userBId], map: "uniq_friend_pair")
   @@index([userAId])
   @@index([userBId])
+}
+
+enum MoneyRequestStatus {
+  PENDING
+  PAID
+  REJECTED
+  CANCELED
+}
+
+model MoneyRequest {
+  id        Int                 @id @default(autoincrement())
+  from      User                @relation("MoneyReqFrom", fields: [fromId], references: [id])
+  fromId    Int                 // talebi OLUŞTURAN (parayı isteyen)
+  to        User                @relation("MoneyReqTo", fields: [toId], references: [id])
+  toId      Int                 // talebi ALAN (ödeyecek kişi)
+  amount    Float
+  note      String?
+  status    MoneyRequestStatus  @default(PENDING)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([toId])
+  @@index([fromId])
 }
