@@ -2,36 +2,34 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { sendMoneyRequest, updateMoneyRequest } from "@/services/moneyRequest";
-import { useMoneyRequests } from "@/hooks/useMoneyRequests";
 import { toast } from "sonner";
-
-type Range = "10" | "1m" | "3m";
-type MRStatus = "all" | "PENDING" | "PAID" | "REJECTED" | "CANCELED";
+import { sendMoneyRequest, updateMoneyRequest } from "@/services/moneyRequest";
+import { useMoneyRequests, MRStatus, Range } from "@/hooks/useMoneyRequests";
+import { mutate } from "swr";
+import { mutateWallet } from "@/lib/mutateWallet"; // sende varsa; yoksa revalidate'ı geçebilirsin
 
 export default function RequestsPage() {
   const sp = useSearchParams();
   const toParam = sp.get("to");
 
-  // Form state
+  // form
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState<number | "">("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Filtre state
+  // filtreler
+  const [range, setRange] = useState<Range>("10");
   const [incomingStatus, setIncomingStatus] = useState<MRStatus>("PENDING");
   const [outgoingStatus, setOutgoingStatus] = useState<MRStatus>("PENDING");
-  const [range, setRange] = useState<Range>("10");
 
-  // Listeler (incoming / outgoing) — filtreli
+  // listeler
   const inc = useMoneyRequests("incoming", incomingStatus, range);
   const out = useMoneyRequests("outgoing", outgoingStatus, range);
 
-  useEffect(() => {
-    if (toParam) setTo(toParam);
-  }, [toParam]);
+  useEffect(() => { if (toParam) setTo(toParam); }, [toParam]);
 
+  // istek oluşturma
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -49,9 +47,8 @@ export default function RequestsPage() {
 
       toast.success("Money request sent");
       setAmount(""); setNote("");
-      // sadece pending gösteriyorsak listeler yenilensin
-      inc.refresh();
-      out.refresh();
+      out.refresh(); // outgoing listemde gözüksün
+      if (incomingStatus === "PENDING") inc.refresh(); // filtreye göre
     } catch (e:any) {
       toast.error(e.message || "Failed to send request");
     } finally {
@@ -59,10 +56,18 @@ export default function RequestsPage() {
     }
   };
 
-  const act = async (id:number, action:"PAY"|"REJECT"|"CANCEL") => {
+  // aksiyonlar (PAY/REJECT/CANCEL)
+  const act = async (r:any, action:"PAY"|"REJECT"|"CANCEL") => {
     try {
-      await updateMoneyRequest(id, action);
+      await updateMoneyRequest(r.id, action);
       toast.success(`Request ${action.toLowerCase()}ed`);
+
+     if (action === "PAY") {
+        // payer sensin → balance’ı anında güncelle
+        if (typeof r.amount === "number") mutateWallet(-r.amount);
+        // mutateWallet zaten TX listelerini de tetikliyor (senin mevcut implementasyonunda)
+      }
+
       inc.refresh();
       out.refresh();
     } catch (e:any) {
@@ -72,7 +77,7 @@ export default function RequestsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Request Form */}
+      {/* Request form */}
       <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4">
         <h2 className="text-lg font-semibold mb-3">Request Money</h2>
         <form onSubmit={submit} className="space-y-3">
@@ -91,7 +96,7 @@ export default function RequestsPage() {
               type="number"
               min={1}
               value={amount}
-              onChange={(e)=>setAmount(e.target.value===""? "": Number(e.target.value))}
+              onChange={(e)=>setAmount(e.target.value === "" ? "" : Number(e.target.value))}
               className="border border-gray-300 rounded-lg p-2 w-full mt-1"
               placeholder="Enter amount"
             />
@@ -115,7 +120,7 @@ export default function RequestsPage() {
         </form>
       </div>
 
-      {/* Filter Bar */}
+      {/* Filters */}
       <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4">
         <h3 className="font-semibold mb-3">Filters</h3>
         <div className="flex flex-wrap gap-3">
@@ -152,68 +157,65 @@ export default function RequestsPage() {
         </div>
       </div>
 
-      {/* Lists */}
-      <div className="grid grid-cols-1 gap-4">
-        {/* Incoming */}
-        <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4">
-          <h3 className="font-semibold mb-2">Incoming ({incomingStatus})</h3>
-          {inc.isLoading ? <p>Loading...</p> :
-           inc.error ? <p className="text-red-600 text-sm">Failed to load incoming.</p> :
-           inc.items.length ? (
-            <ul className="divide-y divide-gray-200">
-              {inc.items.map((r:any)=>(
-                <li key={r.id} className="py-3 flex items-center justify-between">
-                  <div className="text-sm">
-                    <p className="font-medium">{r.from?.name ?? r.from?.email}</p>
-                    <p className="text-gray-500">{r.amount} ₺ — {r.note ?? "-"}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={()=>act(r.id,"PAY")}
-                      disabled={r.status !== "PENDING"}
-                      className="text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg px-3 py-2 disabled:opacity-50"
-                    >
-                      Pay
-                    </button>
-                    <button
-                      onClick={()=>act(r.id,"REJECT")}
-                      disabled={r.status !== "PENDING"}
-                      className="text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 disabled:opacity-50"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : <p className="text-gray-500 text-sm">No incoming requests.</p>}
-        </div>
-
-        {/* Outgoing */}
-        <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4">
-          <h3 className="font-semibold mb-2">Outgoing ({outgoingStatus})</h3>
-          {out.isLoading ? <p>Loading...</p> :
-           out.error ? <p className="text-red-600 text-sm">Failed to load outgoing.</p> :
-           out.items.length ? (
-            <ul className="divide-y divide-gray-200">
-              {out.items.map((r:any)=>(
-                <li key={r.id} className="py-3 flex items-center justify-between">
-                  <div className="text-sm">
-                    <p className="font-medium">{r.to?.name ?? r.to?.email}</p>
-                    <p className="text-gray-500">{r.amount} ₺ — {r.note ?? "-"}</p>
-                  </div>
+      {/* Incoming list */}
+      <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4">
+        <h3 className="font-semibold mb-2">Incoming ({incomingStatus})</h3>
+        {inc.isLoading ? <p>Loading...</p> :
+         inc.error ? <p className="text-red-600 text-sm">Failed to load incoming.</p> :
+         inc.items.length ? (
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            {inc.items.map((r:any)=>(
+              <li key={r.id} className="py-3 flex items-center justify-between">
+                <div className="text-sm">
+                  <p className="font-medium">{r.from?.name ?? r.from?.email}</p>
+                  <p className="text-gray-500">{r.amount} ₺ — {r.note ?? "-"}</p>
+                </div>
+                <div className="flex gap-2">
                   <button
-                    onClick={()=>act(r.id,"CANCEL")}
+                    onClick={()=>act(r,"PAY")}
+                    disabled={r.status !== "PENDING"}
+                    className="text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg px-3 py-2 disabled:opacity-50"
+                  >
+                    Pay
+                  </button>
+                  <button
+                    onClick={()=>act(r,"REJECT")}
                     disabled={r.status !== "PENDING"}
                     className="text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 disabled:opacity-50"
                   >
-                    Cancel
+                    Reject
                   </button>
-                </li>
-              ))}
-            </ul>
-          ) : <p className="text-gray-500 text-sm">No outgoing requests.</p>}
-        </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="text-gray-500 text-sm">No incoming requests.</p>}
+      </div>
+
+      {/* Outgoing list */}
+      <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4">
+        <h3 className="font-semibold mb-2">Outgoing ({outgoingStatus})</h3>
+        {out.isLoading ? <p>Loading...</p> :
+         out.error ? <p className="text-red-600 text-sm">Failed to load outgoing.</p> :
+         out.items.length ? (
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            {out.items.map((r:any)=>(
+              <li key={r.id} className="py-3 flex items-center justify-between">
+                <div className="text-sm">
+                  <p className="font-medium">{r.to?.name ?? r.to?.email}</p>
+                  <p className="text-gray-500">{r.amount} ₺ — {r.note ?? "-"}</p>
+                </div>
+                <button
+                  onClick={()=>act(r,"CANCEL")}
+                  disabled={r.status !== "PENDING"}
+                  className="text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="text-gray-500 text-sm">No outgoing requests.</p>}
       </div>
     </div>
   );
