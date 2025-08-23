@@ -2,45 +2,35 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { sendMoneyRequest, listMoneyRequests, updateMoneyRequest } from "@/services/moneyRequest";
+import { sendMoneyRequest, updateMoneyRequest } from "@/services/moneyRequest";
+import { useMoneyRequests } from "@/hooks/useMoneyRequests";
 import { toast } from "sonner";
+
+type Range = "10" | "1m" | "3m";
+type MRStatus = "all" | "PENDING" | "PAID" | "REJECTED" | "CANCELED";
 
 export default function RequestsPage() {
   const sp = useSearchParams();
   const toParam = sp.get("to");
 
-  // form state
+  // Form state
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState<number | "">("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // lists
-  const [incoming, setIncoming] = useState<any[]>([]);
-  const [outgoing, setOutgoing] = useState<any[]>([]);
-  const [loadingLists, setLoadingLists] = useState(true);
+  // Filtre state
+  const [incomingStatus, setIncomingStatus] = useState<MRStatus>("PENDING");
+  const [outgoingStatus, setOutgoingStatus] = useState<MRStatus>("PENDING");
+  const [range, setRange] = useState<Range>("10");
+
+  // Listeler (incoming / outgoing) — filtreli
+  const inc = useMoneyRequests("incoming", incomingStatus, range);
+  const out = useMoneyRequests("outgoing", outgoingStatus, range);
 
   useEffect(() => {
     if (toParam) setTo(toParam);
   }, [toParam]);
-
-  const refresh = async () => {
-    setLoadingLists(true);
-    try {
-      const [inc, out] = await Promise.all([
-        listMoneyRequests("incoming", "PENDING"),
-        listMoneyRequests("outgoing", "PENDING"),
-      ]);
-      setIncoming(inc);
-      setOutgoing(out);
-    } catch (e:any) {
-      toast.error(e.message || "Failed to load requests");
-    } finally {
-      setLoadingLists(false);
-    }
-  };
-
-  useEffect(() => { refresh(); }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,8 +39,9 @@ export default function RequestsPage() {
       if (!amount || Number(amount) <= 0) throw new Error("Enter a valid amount.");
       setLoading(true);
 
-      if (to.includes("@")) await sendMoneyRequest({ toEmail: to.trim(), amount: Number(amount), note: note.trim() || undefined });
-      else {
+      if (to.includes("@")) {
+        await sendMoneyRequest({ toEmail: to.trim(), amount: Number(amount), note: note.trim() || undefined });
+      } else {
         const idNum = Number(to);
         if (!Number.isFinite(idNum) || idNum <= 0) throw new Error("User ID must be numeric.");
         await sendMoneyRequest({ toUserId: idNum, amount: Number(amount), note: note.trim() || undefined });
@@ -58,7 +49,9 @@ export default function RequestsPage() {
 
       toast.success("Money request sent");
       setAmount(""); setNote("");
-      refresh();
+      // sadece pending gösteriyorsak listeler yenilensin
+      inc.refresh();
+      out.refresh();
     } catch (e:any) {
       toast.error(e.message || "Failed to send request");
     } finally {
@@ -70,7 +63,8 @@ export default function RequestsPage() {
     try {
       await updateMoneyRequest(id, action);
       toast.success(`Request ${action.toLowerCase()}ed`);
-      refresh();
+      inc.refresh();
+      out.refresh();
     } catch (e:any) {
       toast.error(e.message || "Action failed");
     }
@@ -78,7 +72,7 @@ export default function RequestsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Form */}
+      {/* Request Form */}
       <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4">
         <h2 className="text-lg font-semibold mb-3">Request Money</h2>
         <form onSubmit={submit} className="space-y-3">
@@ -121,21 +115,73 @@ export default function RequestsPage() {
         </form>
       </div>
 
+      {/* Filter Bar */}
+      <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4">
+        <h3 className="font-semibold mb-3">Filters</h3>
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Range</span>
+            <select value={range} onChange={(e)=>setRange(e.target.value as Range)} className="border rounded p-2 text-sm">
+              <option value="10">Last 10</option>
+              <option value="1m">Last 1 month</option>
+              <option value="3m">Last 3 months</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Incoming</span>
+            <select value={incomingStatus} onChange={(e)=>setIncomingStatus(e.target.value as MRStatus)} className="border rounded p-2 text-sm">
+              <option value="PENDING">Pending</option>
+              <option value="PAID">Paid</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="CANCELED">Canceled</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Outgoing</span>
+            <select value={outgoingStatus} onChange={(e)=>setOutgoingStatus(e.target.value as MRStatus)} className="border rounded p-2 text-sm">
+              <option value="PENDING">Pending</option>
+              <option value="PAID">Paid</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="CANCELED">Canceled</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Lists */}
       <div className="grid grid-cols-1 gap-4">
+        {/* Incoming */}
         <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4">
-          <h3 className="font-semibold mb-2">Incoming (Pending)</h3>
-          {loadingLists ? <p>Loading...</p> : incoming.length ? (
+          <h3 className="font-semibold mb-2">Incoming ({incomingStatus})</h3>
+          {inc.isLoading ? <p>Loading...</p> :
+           inc.error ? <p className="text-red-600 text-sm">Failed to load incoming.</p> :
+           inc.items.length ? (
             <ul className="divide-y divide-gray-200">
-              {incoming.map((r:any)=>(
+              {inc.items.map((r:any)=>(
                 <li key={r.id} className="py-3 flex items-center justify-between">
                   <div className="text-sm">
                     <p className="font-medium">{r.from?.name ?? r.from?.email}</p>
                     <p className="text-gray-500">{r.amount} ₺ — {r.note ?? "-"}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={()=>act(r.id,"PAY")} className="text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg px-3 py-2">Pay</button>
-                    <button onClick={()=>act(r.id,"REJECT")} className="text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2">Reject</button>
+                    <button
+                      onClick={()=>act(r.id,"PAY")}
+                      disabled={r.status !== "PENDING"}
+                      className="text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg px-3 py-2 disabled:opacity-50"
+                    >
+                      Pay
+                    </button>
+                    <button
+                      onClick={()=>act(r.id,"REJECT")}
+                      disabled={r.status !== "PENDING"}
+                      className="text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
                   </div>
                 </li>
               ))}
@@ -143,17 +189,26 @@ export default function RequestsPage() {
           ) : <p className="text-gray-500 text-sm">No incoming requests.</p>}
         </div>
 
+        {/* Outgoing */}
         <div className="bg-white dark:bg-gray-300 shadow rounded-xl p-4">
-          <h3 className="font-semibold mb-2">Outgoing (Pending)</h3>
-          {loadingLists ? <p>Loading...</p> : outgoing.length ? (
+          <h3 className="font-semibold mb-2">Outgoing ({outgoingStatus})</h3>
+          {out.isLoading ? <p>Loading...</p> :
+           out.error ? <p className="text-red-600 text-sm">Failed to load outgoing.</p> :
+           out.items.length ? (
             <ul className="divide-y divide-gray-200">
-              {outgoing.map((r:any)=>(
+              {out.items.map((r:any)=>(
                 <li key={r.id} className="py-3 flex items-center justify-between">
                   <div className="text-sm">
                     <p className="font-medium">{r.to?.name ?? r.to?.email}</p>
                     <p className="text-gray-500">{r.amount} ₺ — {r.note ?? "-"}</p>
                   </div>
-                  <button onClick={()=>act(r.id,"CANCEL")} className="text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2">Cancel</button>
+                  <button
+                    onClick={()=>act(r.id,"CANCEL")}
+                    disabled={r.status !== "PENDING"}
+                    className="text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
                 </li>
               ))}
             </ul>
